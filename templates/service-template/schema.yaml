@@ -1,0 +1,17 @@
+schema:
+  format: proton::1.0
+  service_input_type: ServiceSpec
+
+service_input_type:
+  type: object
+  required:
+    - service_instance_name
+  properties:
+    service_instance_name:
+      type: string
+    team:
+      type: string
+      default: platform
+    version:
+      type: string
+      default: v1
