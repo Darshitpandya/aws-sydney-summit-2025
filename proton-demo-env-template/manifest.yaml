@@ -1,0 +1,6 @@
+name: proton-demo-env-template
+description: Minimal dummy Proton env template
+rendering_engine: cloudformation
+infrastructure:
+  template_file: template.yaml
+schema_file: schema.yaml
