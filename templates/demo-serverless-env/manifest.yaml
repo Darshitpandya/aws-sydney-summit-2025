@@ -1,0 +1,5 @@
+name: demo-serverless-env
+description: Minimal serverless-compatible environment
+infrastructure:
+  template_file: template.yaml
+  schema_file: schema.yaml

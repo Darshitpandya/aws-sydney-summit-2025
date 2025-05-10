@@ -1,0 +1,8 @@
+name: demo-serverless-env
+description: Dummy inputs for serverless demo
+schema:
+  format:
+    openapi: "3.0.0"
+  properties:
+    dummyInput:
+      type: string

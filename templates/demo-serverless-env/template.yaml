@@ -1,0 +1,8 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  DummyParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /demo/env/placeholder
+      Type: String
+      Value: "This is a dummy environment for Proton"
