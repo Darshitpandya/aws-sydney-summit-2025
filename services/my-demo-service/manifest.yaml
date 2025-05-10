@@ -1,4 +1,4 @@
 name: my-demo-service
 template:
-  name: summit-service-template
+  name: demo-service
   major_version: 1

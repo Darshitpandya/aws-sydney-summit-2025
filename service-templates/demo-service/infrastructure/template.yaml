@@ -1,0 +1,11 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Dummy Proton Service Template
+
+Resources:
+  DummyWait:
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+Outputs:
+  ServiceId:
+    Description: Dummy output
+    Value: !Ref DummyWait

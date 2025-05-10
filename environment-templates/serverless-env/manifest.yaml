@@ -1,0 +1,6 @@
+name: serverless-env
+description: Minimal dummy environment template
+rendering_engine: cloudformation
+infrastructure:
+  template_file: template.yaml
+schema_file: schema.yaml

@@ -1,9 +1,0 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: Minimal Proton Environment Template
-
-Resources:
-  DemoLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/proton/demo-env-${AWS::StackName}
-      RetentionInDays: 1

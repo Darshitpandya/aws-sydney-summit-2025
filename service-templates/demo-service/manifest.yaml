@@ -1,0 +1,6 @@
+name: demo-service
+description: Simple demo service template
+rendering_engine: cloudformation
+infrastructure:
+  template_file: infrastructure/template.yaml
+schema_file: infrastructure/schema.yaml
