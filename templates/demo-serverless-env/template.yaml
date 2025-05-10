@@ -1,8 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
+Description: Minimal Proton Environment for Serverless Demo
+
 Resources:
-  DummyParam:
-    Type: AWS::SSM::Parameter
+  DemoLogGroup:
+    Type: AWS::Logs::LogGroup
     Properties:
-      Name: /demo/env/placeholder
-      Type: String
-      Value: "This is a dummy environment for Proton"
+      LogGroupName: !Sub /aws/proton/demo-env-${AWS::StackName}
+      RetentionInDays: 1
