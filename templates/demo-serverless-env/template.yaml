@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Minimal Proton Environment for Serverless Demo
+Description: Minimal Proton Environment Template
 
 Resources:
   DemoLogGroup:

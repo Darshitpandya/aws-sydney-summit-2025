@@ -1,0 +1,4 @@
+name: my-demo-service
+template:
+  name: summit-service-template
+  major_version: 1
