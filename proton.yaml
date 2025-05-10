@@ -1,6 +1,6 @@
 name: aws-sydney-summit-2025-demo-service
 template:
-  name: serverless-api
+  name: aws-sydney-summit-2025-demo-service
   major_version: 1
 pipeline:
   source:
