@@ -5,7 +5,7 @@ Resources:
   DemoLambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub "${ServiceInstanceName}-function"
+      FunctionName: !Sub "${service_instance_name}-function"
       Handler: index.handler
       Role: !Ref LambdaExecutionRole
       Runtime: nodejs18.x
