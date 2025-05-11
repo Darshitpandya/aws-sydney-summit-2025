@@ -1,0 +1,9 @@
+name: aws-sydney-summit-2025-demo-service
+template:
+  name: aws-sydney-summit-2025-demo-service
+  major_version: 1
+pipeline:
+  source:
+    provider: GitHub
+    repository: github.com/Darshitpandya/aws-sydney-summit-2025
+    branch: main

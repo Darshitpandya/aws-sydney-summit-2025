@@ -1,1 +1,3 @@
-# aws-sydney-summit-2025
+# AWS Summit 2025 Serverless Demo
+
+This is a working Proton + EventBridge + Lambda demo.

@@ -1,0 +1,6 @@
+name: aws-sydney-summit-2025-demo-service
+display_name: AWS Sydney Summit 2025 Demo
+description: Simple Proton template for Summit demo
+infrastructure:
+  template_file: infrastructure/template.yaml
+  schema_file: infrastructure/schema.yaml

@@ -1,0 +1,17 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Simple Lambda function for demo
+
+Resources:
+  DemoFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: demoFunction
+      Handler: index.handler
+      Role: arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Runtime: nodejs18.x
+      Code:
+        ZipFile: |
+          exports.handler = async (event) => {
+            console.log("Demo Lambda triggered", event);
+            return { statusCode: 200, body: "Success" };
+          };
