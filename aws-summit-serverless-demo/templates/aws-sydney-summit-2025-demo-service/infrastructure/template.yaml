@@ -1,17 +1,411 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Simple Lambda function for demo
+Description: AWS Sydney Summit 2025 - Platform Engineering in Serverless World Demo
+
+Parameters:
+  ServiceInstanceName:
+    Type: String
+    Description: The name of the service instance
+  NotificationEmail:
+    Type: String
+    Description: Email address to receive notifications
+  EnvironmentName:
+    Type: String
+    Default: dev
+    Description: The environment name (dev, test, prod)
+  LambdaMemory:
+    Type: Number
+    Default: 128
+    Description: Memory allocation for Lambda functions (in MB)
+  LambdaTimeout:
+    Type: Number
+    Default: 30
+    Description: Timeout for Lambda functions (in seconds)
 
 Resources:
-  DemoFunction:
+  # IAM Role for Lambda functions
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SNSPublishPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref NotificationTopic
+
+  # SNS Topic for notifications
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Sub "${ServiceInstanceName}-notifications"
+      TopicName: !Sub "${ServiceInstanceName}-notifications"
+
+  # SNS Subscription for email notifications
+  EmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      Endpoint: !Ref NotificationEmail
+      TopicArn: !Ref NotificationTopic
+
+  # Lambda function to process events
+  ProcessorFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: demoFunction
+      FunctionName: !Sub "${ServiceInstanceName}-processor-${EnvironmentName}"
       Handler: index.handler
-      Role: arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Role: !GetAtt LambdaExecutionRole.Arn
       Runtime: nodejs18.x
+      MemorySize: !Ref LambdaMemory
+      Timeout: !Ref LambdaTimeout
+      Environment:
+        Variables:
+          NOTIFICATION_TOPIC_ARN: !Ref NotificationTopic
+          ENVIRONMENT: !Ref EnvironmentName
       Code:
         ZipFile: |
+          /**
+           * Event Processor Lambda Function
+           * 
+           * This function processes events from EventBridge and prepares data
+           * for the next step in the workflow.
+           */
+          
           exports.handler = async (event) => {
-            console.log("Demo Lambda triggered", event);
-            return { statusCode: 200, body: "Success" };
+            console.log("Event processor triggered", JSON.stringify(event, null, 2));
+            
+            try {
+              // Extract relevant information from the event
+              const eventSource = event.source || 'unknown';
+              const eventType = event['detail-type'] || 'unknown';
+              const eventDetail = event.detail || {};
+              
+              // Process based on event type
+              let processedData = {};
+              
+              if (eventSource === 'aws.proton' && eventType === 'Proton Service Status Change') {
+                processedData = {
+                  serviceName: eventDetail.name,
+                  status: eventDetail.status,
+                  deploymentStatus: eventDetail.deploymentStatus,
+                  templateName: eventDetail.templateName,
+                  templateVersion: `${eventDetail.templateMajorVersion}.${eventDetail.templateMinorVersion}`,
+                  timestamp: eventDetail.lastDeploymentSucceededAt || new Date().toISOString()
+                };
+                
+                console.log("Processed Proton service status change:", processedData);
+              } else {
+                // Handle other event types
+                processedData = {
+                  eventSource,
+                  eventType,
+                  timestamp: new Date().toISOString(),
+                  rawDetail: eventDetail
+                };
+                
+                console.log("Processed generic event:", processedData);
+              }
+              
+              // Add environment information
+              processedData.environment = process.env.ENVIRONMENT || 'unknown';
+              processedData.region = process.env.AWS_REGION || 'unknown';
+              
+              // Return the processed data for the next step
+              return {
+                statusCode: 200,
+                processedData,
+                rawEvent: event
+              };
+            } catch (error) {
+              console.error("Error processing event:", error);
+              throw error;
+            }
           };
+
+  # Lambda function to send notifications
+  NotifierFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ServiceInstanceName}-notifier-${EnvironmentName}"
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: nodejs18.x
+      MemorySize: !Ref LambdaMemory
+      Timeout: !Ref LambdaTimeout
+      Environment:
+        Variables:
+          NOTIFICATION_TOPIC_ARN: !Ref NotificationTopic
+          ENVIRONMENT: !Ref EnvironmentName
+      Code:
+        ZipFile: |
+          /**
+           * Notification Lambda Function
+           * 
+           * This function sends notifications via SNS based on the workflow results.
+           */
+          
+          const AWS = require('aws-sdk');
+          const sns = new AWS.SNS();
+          
+          exports.handler = async (event) => {
+            console.log("Notification handler triggered", JSON.stringify(event, null, 2));
+            
+            try {
+              // Extract data from the event
+              const processedData = event.processedData || {};
+              const rawEvent = event.rawEvent || {};
+              const environment = process.env.ENVIRONMENT || 'unknown';
+              const notificationType = event.notificationType || 'GENERIC';
+              
+              // Determine notification type and content based on the event
+              let subject, message;
+              
+              if (processedData.serviceName && processedData.deploymentStatus) {
+                // Proton service deployment notification
+                const status = processedData.deploymentStatus;
+                const serviceName = processedData.serviceName;
+                
+                subject = `[${environment.toUpperCase()}] Proton Service ${serviceName} - ${status}`;
+                
+                message = {
+                  title: `Service Deployment ${status}`,
+                  service: serviceName,
+                  status: status,
+                  template: processedData.templateName,
+                  version: processedData.templateVersion,
+                  timestamp: processedData.timestamp,
+                  environment: environment,
+                  notificationType: notificationType
+                };
+              } else if (event.error) {
+                // Error notification
+                subject = `[${environment.toUpperCase()}] Platform Workflow Error`;
+                
+                message = {
+                  title: "Workflow Error Occurred",
+                  error: event.error.Cause || event.error.message || "Unknown error",
+                  timestamp: new Date().toISOString(),
+                  environment: environment,
+                  notificationType: "ERROR"
+                };
+              } else {
+                // Generic notification
+                subject = `[${environment.toUpperCase()}] Platform Event Notification`;
+                
+                message = {
+                  title: "Platform Event Processed",
+                  eventType: processedData.eventType || rawEvent['detail-type'] || 'Unknown',
+                  source: processedData.eventSource || rawEvent.source || 'Unknown',
+                  timestamp: new Date().toISOString(),
+                  details: processedData,
+                  environment: environment,
+                  notificationType: notificationType
+                };
+              }
+              
+              // Send notification via SNS
+              const params = {
+                TopicArn: process.env.NOTIFICATION_TOPIC_ARN,
+                Subject: subject,
+                Message: JSON.stringify(message, null, 2)
+              };
+              
+              console.log("Sending SNS notification:", params);
+              await sns.publish(params).promise();
+              
+              console.log("Notification sent successfully");
+              return {
+                statusCode: 200,
+                body: "Notification sent successfully",
+                notificationDetails: {
+                  subject,
+                  topicArn: process.env.NOTIFICATION_TOPIC_ARN,
+                  timestamp: new Date().toISOString()
+                }
+              };
+            } catch (error) {
+              console.error("Error sending notification:", error);
+              throw error;
+            }
+          };
+
+  # Step Function state machine for workflow orchestration
+  WorkflowStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub "${ServiceInstanceName}-workflow-${EnvironmentName}"
+      RoleArn: !GetAtt StepFunctionsExecutionRole.Arn
+      DefinitionString: !Sub |
+        {
+          "Comment": "Platform Engineering Serverless Workflow",
+          "StartAt": "ProcessEvent",
+          "States": {
+            "ProcessEvent": {
+              "Type": "Task",
+              "Resource": "${ProcessorFunction.Arn}",
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 2
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "ResultPath": "$.error",
+                  "Next": "HandleError"
+                }
+              ],
+              "Next": "EvaluateResult"
+            },
+            "EvaluateResult": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.processedData.deploymentStatus",
+                  "StringEquals": "SUCCEEDED",
+                  "Next": "SendSuccessNotification"
+                },
+                {
+                  "Variable": "$.processedData.deploymentStatus",
+                  "StringEquals": "FAILED",
+                  "Next": "SendFailureNotification"
+                }
+              ],
+              "Default": "SendGenericNotification"
+            },
+            "SendSuccessNotification": {
+              "Type": "Task",
+              "Resource": "${NotifierFunction.Arn}",
+              "Parameters": {
+                "processedData.$": "$.processedData",
+                "rawEvent.$": "$.rawEvent",
+                "notificationType": "SUCCESS"
+              },
+              "End": true
+            },
+            "SendFailureNotification": {
+              "Type": "Task",
+              "Resource": "${NotifierFunction.Arn}",
+              "Parameters": {
+                "processedData.$": "$.processedData",
+                "rawEvent.$": "$.rawEvent",
+                "notificationType": "FAILURE"
+              },
+              "End": true
+            },
+            "SendGenericNotification": {
+              "Type": "Task",
+              "Resource": "${NotifierFunction.Arn}",
+              "Parameters": {
+                "processedData.$": "$.processedData",
+                "rawEvent.$": "$.rawEvent",
+                "notificationType": "GENERIC"
+              },
+              "End": true
+            },
+            "HandleError": {
+              "Type": "Task",
+              "Resource": "${NotifierFunction.Arn}",
+              "Parameters": {
+                "error.$": "$.error",
+                "rawEvent.$": "$.rawEvent",
+                "notificationType": "ERROR"
+              },
+              "End": true
+            }
+          }
+        }
+
+  # IAM Role for Step Functions
+  StepFunctionsExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StepFunctionsLambdaInvoke
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt ProcessorFunction.Arn
+                  - !GetAtt NotifierFunction.Arn
+
+  # EventBridge Rule to trigger the workflow
+  EventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${ServiceInstanceName}-event-rule-${EnvironmentName}"
+      Description: "Rule to trigger the serverless workflow"
+      EventPattern:
+        source:
+          - "aws.proton"
+        detail-type:
+          - "Proton Service Status Change"
+      State: ENABLED
+      Targets:
+        - Arn: !Ref WorkflowStateMachine
+          Id: "StepFunctionsTarget"
+          RoleArn: !GetAtt EventBridgeRole.Arn
+
+  # IAM Role for EventBridge
+  EventBridgeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StepFunctionsExecution
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:StartExecution
+                Resource:
+                  - !Ref WorkflowStateMachine
+
+Outputs:
+  NotificationTopicArn:
+    Description: ARN of the SNS notification topic
+    Value: !Ref NotificationTopic
+  
+  WorkflowStateMachineArn:
+    Description: ARN of the Step Functions state machine
+    Value: !Ref WorkflowStateMachine
+  
+  ProcessorFunctionArn:
+    Description: ARN of the processor Lambda function
+    Value: !GetAtt ProcessorFunction.Arn
+  
+  NotifierFunctionArn:
+    Description: ARN of the notifier Lambda function
+    Value: !GetAtt NotifierFunction.Arn

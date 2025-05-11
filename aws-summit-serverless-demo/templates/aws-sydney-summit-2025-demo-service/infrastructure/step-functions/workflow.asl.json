@@ -1,0 +1,82 @@
+{
+  "Comment": "Platform Engineering Serverless Workflow",
+  "StartAt": "ProcessEvent",
+  "States": {
+    "ProcessEvent": {
+      "Type": "Task",
+      "Resource": "${ProcessorFunctionArn}",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "HandleError"
+        }
+      ],
+      "Next": "EvaluateResult"
+    },
+    "EvaluateResult": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.processedData.deploymentStatus",
+          "StringEquals": "SUCCEEDED",
+          "Next": "SendSuccessNotification"
+        },
+        {
+          "Variable": "$.processedData.deploymentStatus",
+          "StringEquals": "FAILED",
+          "Next": "SendFailureNotification"
+        }
+      ],
+      "Default": "SendGenericNotification"
+    },
+    "SendSuccessNotification": {
+      "Type": "Task",
+      "Resource": "${NotifierFunctionArn}",
+      "Parameters": {
+        "processedData.$": "$.processedData",
+        "rawEvent.$": "$.rawEvent",
+        "notificationType": "SUCCESS"
+      },
+      "End": true
+    },
+    "SendFailureNotification": {
+      "Type": "Task",
+      "Resource": "${NotifierFunctionArn}",
+      "Parameters": {
+        "processedData.$": "$.processedData",
+        "rawEvent.$": "$.rawEvent",
+        "notificationType": "FAILURE"
+      },
+      "End": true
+    },
+    "SendGenericNotification": {
+      "Type": "Task",
+      "Resource": "${NotifierFunctionArn}",
+      "Parameters": {
+        "processedData.$": "$.processedData",
+        "rawEvent.$": "$.rawEvent",
+        "notificationType": "GENERIC"
+      },
+      "End": true
+    },
+    "HandleError": {
+      "Type": "Task",
+      "Resource": "${NotifierFunctionArn}",
+      "Parameters": {
+        "error.$": "$.error",
+        "rawEvent.$": "$.rawEvent",
+        "notificationType": "ERROR"
+      },
+      "End": true
+    }
+  }
+}

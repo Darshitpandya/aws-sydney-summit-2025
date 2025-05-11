@@ -1,0 +1,23 @@
+{
+  "version": "0",
+  "id": "87654321-4321-4321-4321-210987654321",
+  "detail-type": "Proton Service Status Change",
+  "source": "aws.proton",
+  "account": "123456789012",
+  "time": "2023-05-15T13:30:00Z",
+  "region": "ap-southeast-2",
+  "resources": [
+    "arn:aws:proton:ap-southeast-2:123456789012:service/sydney-summit-demo"
+  ],
+  "detail": {
+    "name": "sydney-summit-demo",
+    "status": "UPDATE_FAILED",
+    "lastDeploymentAttemptedAt": "2023-05-15T13:30:00Z",
+    "lastDeploymentSucceededAt": "2023-05-15T12:00:00Z",
+    "deploymentStatus": "FAILED",
+    "templateName": "aws-sydney-summit-2025-demo-service",
+    "templateMajorVersion": "1",
+    "templateMinorVersion": "0",
+    "errorMessage": "CloudFormation stack update failed: Resource creation failed"
+  }
+}

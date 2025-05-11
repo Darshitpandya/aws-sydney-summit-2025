@@ -6,7 +6,23 @@ service_input_type:
   type: object
   required:
     - service_instance_name
+    - notification_email
   properties:
     service_instance_name:
       type: string
       description: The name of the service instance
+    notification_email:
+      type: string
+      description: Email address to receive notifications
+    environment_name:
+      type: string
+      description: The environment name (dev, test, prod)
+      default: dev
+    lambda_memory:
+      type: number
+      description: Memory allocation for Lambda functions (in MB)
+      default: 128
+    lambda_timeout:
+      type: number
+      description: Timeout for Lambda functions (in seconds)
+      default: 30

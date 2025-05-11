@@ -1,6 +1,11 @@
 name: aws-sydney-summit-2025-demo-service
 display_name: AWS Sydney Summit 2025 Demo
-description: Simple Proton template for Summit demo
+description: |
+  Platform Engineering in Serverless World - AWS Sydney Summit 2025 Demo
+  
+  This template demonstrates how to build a modern, scalable, cost-effective developer platform
+  using AWS-native tools without Kubernetes. It showcases a GitOps workflow with AWS Proton,
+  EventBridge, Lambda, and Step Functions for service orchestration and notifications.
 infrastructure:
   template_file: infrastructure/template.yaml
   schema_file: infrastructure/schema.yaml

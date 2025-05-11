@@ -2,6 +2,12 @@ name: aws-sydney-summit-2025-demo-service
 template:
   name: aws-sydney-summit-2025-demo-service
   major_version: 1
+inputs:
+  service_instance_name: sydney-summit-demo
+  notification_email: your-email@example.com
+  environment_name: dev
+  lambda_memory: 256
+  lambda_timeout: 60
 pipeline:
   source:
     provider: GitHub
